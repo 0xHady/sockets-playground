@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Playground</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #messages {
+            height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+        }
+        #messageInput {
+            width: 70%;
+            padding: 8px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .disconnected {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Playground</h1>
+    <div id="status" class="status disconnected">Disconnected</div>
+    <div id="messages"></div>
+    <div>
+        <input type="text" id="messageInput" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let socket;
+        const messagesDiv = document.getElementById('messages');
+        const statusDiv = document.getElementById('status');
+        const messageInput = document.getElementById('messageInput');
+
+        function connect() {
+            // Use wss:// if your page is served over https://
+            const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const wsUri = protocol + window.location.host + '/ws';
+            
+            socket = new WebSocket(wsUri);
+
+            socket.onopen = function(e) {
+                logMessage('Connected to server');
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+            };
+
+            socket.onmessage = function(event) {
+                logMessage('Echo: ' + event.data);
+            };
+
+            socket.onclose = function(event) {
+                if (event.wasClean) {
+                    logMessage(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+                } else {
+                    logMessage('Connection died');
+                }
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+                
+                // Try to reconnect after 2 seconds
+                setTimeout(connect, 2000);
+            };
+
+            socket.onerror = function(error) {
+                logMessage('Error: ' + error.message);
+            };
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && socket && socket.readyState === WebSocket.OPEN) {
+                logMessage('You: ' + message);
+                socket.send(message);
+                messageInput.value = '';
+            }
+        }
+
+        function logMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Allow sending message with Enter key
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize connection when page loads
+        connect();
+    </script>
+</body>
+</html>
