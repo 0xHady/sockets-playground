@@ -25,8 +25,11 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	log.Println("Client connected")
 
 	const (
+		// Send pings to peer with this period
+		pingPeriod = 10 * time.Second
+
 		// Time allowed to read the next pong message from the peer
-		pongWait = 2 * time.Second
+		pongWait = 1 * time.Second
 
 		// Maximum message size allowed from peer
 		maxMessageSize = 512
@@ -40,8 +43,21 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 		ws.SetPongHandler(func(string) error {
 			ws.SetReadDeadline(time.Now().Add(pongWait))
+			log.Println("Received pong from client")
 			return nil
 		})
+
+		ticker := time.NewTicker(pingPeriod)
+		defer ticker.Stop()
+
+		go func() {
+			for range ticker.C {
+				ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second))
+				// log
+				log.Println("Sent ping to client")
+			}
+		}()
+
 		messageType, p, err := ws.ReadMessage()
 		if err != nil {
 			log.Println(err)
