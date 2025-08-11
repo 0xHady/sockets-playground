@@ -36,7 +36,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	for {
 		// Read message from browser
 		ws.SetReadLimit(maxMessageSize)
-		// ws.SetReadDeadline(time.Now().Add(pongWait))
+		ws.SetReadDeadline(time.Now().Add(pongWait))
 
 		ws.SetPongHandler(func(string) error {
 			ws.SetReadDeadline(time.Now().Add(pongWait))
