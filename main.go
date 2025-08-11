@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -23,9 +24,24 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Client connected")
 
+	const (
+		// Time allowed to read the next pong message from the peer
+		pongWait = 2 * time.Second
+
+		// Maximum message size allowed from peer
+		maxMessageSize = 512
+	)
+
 	// Listen for incoming messages
 	for {
 		// Read message from browser
+		ws.SetReadLimit(maxMessageSize)
+		// ws.SetReadDeadline(time.Now().Add(pongWait))
+
+		ws.SetPongHandler(func(string) error {
+			ws.SetReadDeadline(time.Now().Add(pongWait))
+			return nil
+		})
 		messageType, p, err := ws.ReadMessage()
 		if err != nil {
 			log.Println(err)
@@ -35,7 +51,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received: %s\n", p)
 
 		// Echo the message back to the client
-		if err := ws.WriteMessage(messageType, p); err != nil {
+		if err := ws.WriteMessage(messageType, []byte(`fuck off`)); err != nil {
 			log.Println(err)
 			return
 		}
@@ -48,9 +64,20 @@ func main() {
 	http.Handle("/", fs)
 
 	// Configure WebSocket route
-	http.HandleFunc("/ws", handleConnections)
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("New WebSocket connection attempt")
+		handleConnections(w, r)
+	})
 
 	// Start the server on port 8080
-	log.Println("Server starting on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	addr := "localhost:8080"
+	server := &http.Server{
+		Addr:         addr,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	log.Printf("Server starting on http://%s\n", addr)
+	// log.Printf("Ping interval: %v, Pong timeout: %v\n", pingPeriod, pongWait)
+	log.Fatal(server.ListenAndServe())
 }
